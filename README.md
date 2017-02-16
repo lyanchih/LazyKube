@@ -1,0 +1,2 @@
+# LazyKube
+Easy deploy kuberentes
