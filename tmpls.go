@@ -23,7 +23,7 @@ const K8S_CONTROLLER_TMPL = `{
   "name": "k8s controller",
   "profile": "k8s-controller",
   "selector": {
-    "mac": "{{.MAC}}",
+    "mac": "{{index .MAC 0}}",
     "os": "installed"
   },
   "metadata": {
@@ -46,7 +46,7 @@ const K8S_WORKER_TMPL = `{
   "name": "k8s worker",
   "profile": "k8s-worker",
   "selector": {
-    "mac": "{{.MAC}}",
+    "mac": "{{index .MAC 0}}",
     "os": "installed"
   },
   "metadata": {
@@ -62,12 +62,28 @@ const K8S_WORKER_TMPL = `{
 }
 `
 
+const NODE_TMPL = `{
+  "id": "{{.ID}}",
+  "name": "Node {{.ID}}",
+  "profile": "{{.Profile}}",
+  "selector": {
+    "mac": "{{index .MAC 0}}"
+  },
+  "metadata": {
+    "domain_name": "{{.Domain}}",
+    "interfaces": {{.Nics}},
+    "ssh_authorized_keys": {{.AuthorizedKeys}}
+  }
+}
+`
+
 const DNSMASQ_TMPL = `# dnsmasq.conf
 
 dhcp-option=3,{{.Cls.Gateway}}
 
-{{ range .Nodes }}
-dhcp-host={{.MAC}},{{.IP}},1h{{ end }}
+{{ range $i, $node := .Nodes }}
+{{ range $index, $mac := .MAC }}
+dhcp-host={{$mac}},{{index $node.IP $index}},1h{{ end }}{{ end }}
 
 enable-tftp
 tftp-root=/var/lib/tftpboot
@@ -89,7 +105,7 @@ address=/{{.Cls.VIPDomain}}/{{.Cls.VIP}}
 
 ##### node address #####
 {{range .Nodes}}
-address=/{{.Domain}}/{{.IP}}{{end}}
+address=/{{.Domain}}/{{index .IP 0}}{{end}}
 
 ##### dns server #####
 {{range .Cls.DNS}}

@@ -112,9 +112,10 @@ type MatchboxConfig struct {
 }
 
 type NodeConfig struct {
-	MAC  string `ini:"mac"`
-	Role string `ini:"role"`
-	IP   string `ini:"ip"`
+	MAC     []string `ini:"mac"`
+	Role    string   `ini:"role"`
+	IP      []string `ini:"ip"`
+	Profile string   `ini:"profile"`
 }
 
 type NetworkConfig struct {
@@ -199,16 +200,33 @@ func (c *Config) analyzeNodes() error {
 		if len(c.DomainBase) == 0 {
 			node.Domain = node.Domain + "." + c.DomainBase
 		}
+		if len(node.Profile) == 0 {
+			node.Profile = "node"
+		}
+
+		nics := make(NodeInterfaces, 0, len(node.IP))
+		for i, ip := range node.IP {
+			var mac string
+			if len(node.MAC) > i {
+				mac = node.MAC[i]
+			}
+			nics = append(nics, NodeInterface{
+				MAC:       mac,
+				IP:        ip,
+				Interface: fmt.Sprintf("eth%d", i),
+			})
+		}
+		node.Nics = nics
 		node.Cluster = c.Cls
 	}
 	return nil
 }
 
 func (c *Config) analyzeCluster() error {
+	var controllerEndpoint string
 	initialCluster := make([]string, 0, len(c.Nodes))
 	endpoints := make([]string, 0, len(c.Nodes))
-	hosts := make(map[string]string)
-	var controllerEndpoint string
+
 	for _, n := range c.Nodes {
 		if n.Role == "master" {
 			initialCluster = append(initialCluster, fmt.Sprintf("%s=http://%s:2380", n.ID, n.Domain))
@@ -217,17 +235,17 @@ func (c *Config) analyzeCluster() error {
 				controllerEndpoint = fmt.Sprintf("https://%s", n.Domain)
 			}
 		}
-		hosts[n.IP] = n.Domain
 	}
+
 	bs, err := json.Marshal(c.Keys)
 	if err != nil {
 		log.Println("Convert keys into json array failed: ", err)
 		bs = []byte("[]")
 	}
+
 	c.Cls.InitialCluster = strings.Join(initialCluster, ",")
 	c.Cls.Endpoints = strings.Join(endpoints, ",")
 	c.Cls.ControllerEndpoint = controllerEndpoint
-	c.Cls.Hosts = hosts
 	c.Cls.AuthorizedKeys = string(bs)
 	return nil
 }
@@ -252,6 +270,9 @@ func (c *Config) Generate() error {
 		case "minion":
 			tmpl = K8S_WORKER_TMPL
 			name = "worker"
+		default:
+			tmpl = NODE_TMPL
+			name = "Node " + n.ID
 		}
 
 		err = writeTemplateToFile(tmpl, name,
