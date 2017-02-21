@@ -8,7 +8,7 @@ import (
 var configFile string
 
 func init() {
-	flag.StringVar(&configFile, "-config-file", "etc/lazy.ini", "Config file")
+	flag.StringVar(&configFile, "config-file", "etc/lazy.ini", "Config file")
 }
 
 func main() {

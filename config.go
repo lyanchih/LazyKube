@@ -15,7 +15,7 @@ import (
 var outputPath string
 
 func init() {
-	flag.StringVar(&outputPath, "-output", "_output", "Output path")
+	flag.StringVar(&outputPath, "output", "_output", "Output path")
 }
 
 type iniConfig ini.File
