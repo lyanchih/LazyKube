@@ -1,0 +1,83 @@
+#!/bin/bash
+
+ALLOW_NODE_KEY="mac role"
+ALLOW_DEFAULT_KEY="domain_base nodes version channel"
+
+function find_config() {
+    local file=$1
+    if [ ! -f "$file" ]; then
+        file=$INI_FILE
+    fi
+
+    if [ ! -f "$INI_FILE" ]; then
+        file="etc/lazy.ini"
+    fi
+    
+    echo $file
+}
+
+function extract_session() {
+    local file=$1 session=$2
+    if [[ $# -eq 0 ]]; then
+        file=$(find_config)
+    fi
+
+    if [ -z "$session" ]; then
+        awk '/^$|^#/ {next}; /^\[.*\]$/ {exit}; {print $0}' $file
+    else
+        awk '/^$|^#/ {next}; /^\['$session'\]$/ {b=1; next}; /^\[.*\]$/ {if (b==1) {b=0} }; {if (b==1) print $0}' $file
+    fi
+}
+
+function extract_default() {
+    local file=$(find_config $1)
+    extract_session $file | filter_session $ALLOW_DEFAULT_KEY
+    extract_session $file DEFAULT | filter_session $ALLOW_DEFAULT_KEY
+}
+
+function extract_node() {
+    local file=$1,node=$2
+    if [[ $# -eq 1 ]]; then
+        file=$(find_config)
+        node=$1
+    fi
+    extract_session $file $node | filter_session $ALLOW_NODE_KEY
+}
+
+function extract_nodes() {
+    local file=$(find_config $1)
+    extract_default $file | awk '/^nodes=.*$/{split($0,r,"="); if (length(r) > 1) {nodes=r[2]; gsub(",", " ", nodes); print nodes}}'  
+}
+
+function filter_session() {
+    local filters="$@"
+    while read LINE; do
+        if [ -z "$filters" ]; then
+            echo $LINE
+            continue
+        fi
+        for key in $filters; do
+            grep -E "^$key=" - <<<$LINE
+        done
+    done
+}
+
+function extract_key() {
+    local key=$1
+
+    awk '/'$key'/ {split($0, v, "="); if (length(v)>1) {gsub(",", " ", v[2]); print v[2]}}' -
+}
+
+function extract_session_key() {
+    local file=$1 session=$2 key=$3
+    if [[ $# -eq 1 ]]; then
+        key=$1
+        extract_default | extract_key $key
+        return
+    elif [[ $# -eq 2 ]]; then
+        file=$(find_config)
+        session=$1
+        key=$2
+    fi
+    extract_session $file $session | extract_key $key
+}

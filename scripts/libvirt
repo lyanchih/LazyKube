@@ -1,0 +1,116 @@
+#!/bin/bash
+# Manage VM nodes which have a specific set of hardware attributes.
+
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+source "${DIR}/utils"
+
+if [ "$EUID" -ne 0 ]
+then echo "Please run as root"
+     exit
+fi
+
+ACTION="$1"
+shift
+nodes=($@)
+
+function main {
+    if [[ $# -eq 0 ]]; then
+        nodes=($(extract_session_key nodes))
+    fi
+    
+    case "$ACTION" in
+        "create") create_docker;;
+        "create-docker") create_docker;;
+        "start") start;;
+        "reboot") reboot;;
+        "shutdown") shutdown;;
+        "poweroff") poweroff;;
+        "destroy") destroy;;
+        "vol-delete") vol-delete;;
+        *)
+            usage
+            exit 2
+            ;;
+    esac
+}
+
+function usage {
+    cat - <<EOF
+USAGE: ${0##*/} <command>"
+Commands:"
+    create            create QEMU/KVM nodes on a rkt CNI metal0 bridge
+    create-rkt        create QEMU/KVM nodes on a rkt CNI metal0 bridge
+    create-docker     create QEMU/KVM nodes on the docker0 bridge
+    create-uefi       create UEFI QEMU/KVM nodes on the rkt CNI metal0 bridge
+    start             start the QEMU/KVM nodes
+    reboot            reboot the QEMU/KVM nodes
+    shutdown          shutdown the QEMU/KVM nodes
+    poweroff          poweroff the QEMU/KVM nodes
+    destroy           destroy the QEMU/KVM nodes
+    vol-delete        delete QEMU/KVM disk
+EOF
+}
+
+COMMON_VIRT_OPTS="--memory=1024 --vcpus=1 --pxe --disk pool=default,size=6 --os-type=linux --os-variant=generic --noautoconsole --events on_poweroff=preserve"
+
+function create_docker {
+    local network=""
+    for n in ${nodes[@]}; do
+        network=""
+        for mac in $(extract_session_key $n mac | tr ',' ' '); do
+            if [ -z "$network" ]; then
+                network="--network=bridge:docker0,mac=$mac"
+            else
+                network="$network --network=bridge:kube0,mac=$mac"
+            fi
+        done
+        virt-install --name $n $network $COMMON_VIRT_OPTS --boot=hd,network
+    done
+}
+
+function start {
+    for node in ${nodes[@]}; do
+        virsh start $node
+    done
+}
+
+function reboot {
+    for node in ${nodes[@]}; do
+        virsh reboot $node
+    done
+}
+
+function shutdown {
+    for node in ${nodes[@]}; do
+        virsh shutdown $node
+    done
+}
+
+function poweroff {
+    for node in ${nodes[@]}; do
+        virsh destroy $node
+    done
+}
+
+function destroy {
+    for node in ${nodes[@]}; do
+        virsh destroy $node
+    done
+    for node in ${nodes[@]}; do
+        virsh undefine $node
+    done
+    virsh pool-refresh default
+    for node in ${nodes[@]}; do
+        virsh vol-delete --pool default $node.qcow2
+    done
+}
+
+function vol-delete {
+    virsh pool-refresh default
+    for node in ${nodes[@]}; do
+        virsh vol-delete --pool default $node.qcow2
+    done
+}
+
+main $@
