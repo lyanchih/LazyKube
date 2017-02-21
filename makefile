@@ -1,2 +1,2 @@
 fmt:
-	find . -type f -name '*.go' -exec gofmt -w {} +
+	find . -type f -name '*.go' -exec go fmt ";"

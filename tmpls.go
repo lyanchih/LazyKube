@@ -62,6 +62,40 @@ const K8S_WORKER_TMPL = `{
 }
 `
 
+const DNSMASQ_TMPL = `# dnsmasq.conf
+
+dhcp-option=3,{{.Cls.Gateway}}
+
+{{ range .Nodes }}
+dhcp-host={{.MAC}},{{.IP}},1h{{ end }}
+
+enable-tftp
+tftp-root=/var/lib/tftpboot
+
+dhcp-userclass=set:ipxe,iPXE
+dhcp-boot=tag:#ipxe,undionly.kpxe
+dhcp-boot=tag:ipxe,{{.M.URL}}/boot.ipxe
+
+log-queries
+log-dhcp
+
+address=/bootcfg.foo/172.18.0.2
+address=/{{.M.Domain}}/{{.M.IP}}
+
+##### vip address #####
+{{if .Cls.EnableVIP }}
+address=/{{.Cls.VIPDomain}}/{{.Cls.VIP}}
+{{end}}
+
+##### node address #####
+{{range .Nodes}}
+address=/{{.Domain}}/{{.IP}}{{end}}
+
+##### dns server #####
+{{range .Cls.DNS}}
+server={{.}}{{end}}
+`
+
 func writeTemplateToFile(tmplContent, name, fileName string, data interface{}) error {
 	tmpl, err := template.New(name).Parse(tmplContent)
 	if err != nil {

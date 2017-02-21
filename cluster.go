@@ -6,6 +6,6 @@ type Cluster struct {
 	ControllerEndpoint string
 	Hosts              map[string]string
 	AuthorizedKeys     string
-	M                  *matchboxConfig
+	M                  *MatchboxConfig
 	*Network
 }

@@ -39,15 +39,21 @@ func (cfg *iniConfig) newConfigFromSection(s string, v interface{}) (interface{}
 
 	err = sec.MapTo(v)
 	if err != nil {
+		if len(s) == 0 {
+			s = "DEFAULT"
+		}
 		log.Println("Parse session", s, "fail")
 		return nil, err
 	}
 	return v, nil
 }
 
-func (cfg *iniConfig) newConfig() (*Config, error) {
-	v, err := cfg.newConfigFromSection("", &Config{})
-	return v.(*Config), err
+func (cfg *iniConfig) newDefaultConfig() (*DefaultConfig, error) {
+	v, err := cfg.newConfigFromSection("", &DefaultConfig{})
+	if err != nil {
+		return nil, err
+	}
+	return v.(*DefaultConfig), nil
 }
 
 func (cfg *iniConfig) newNodes(ids []string) ([]*Node, error) {
@@ -57,44 +63,67 @@ func (cfg *iniConfig) newNodes(ids []string) ([]*Node, error) {
 			continue
 		}
 
-		n, err := cfg.newConfigFromSection(id, &Node{})
+		n, err := cfg.newConfigFromSection(id, &NodeConfig{})
 		if err != nil {
 			log.Println("New node config", id, "failed:", err)
 			continue
 		}
-		nodes = append(nodes, n.(*Node))
+		nodes = append(nodes, &Node{NodeConfig: n.(*NodeConfig)})
 	}
 	return nodes, nil
 }
 
-func (cfg *iniConfig) newNetworkConfig() (*networkConfig, error) {
-	v, err := cfg.newConfigFromSection("network", &networkConfig{})
-	return v.(*networkConfig), err
+func (cfg *iniConfig) newNetworkConfig() (*NetworkConfig, error) {
+	v, err := cfg.newConfigFromSection("network", &NetworkConfig{})
+	if err != nil {
+		return nil, err
+	}
+	return v.(*NetworkConfig), nil
 }
 
-func (cfg *iniConfig) newMatchboxConfig() (*matchboxConfig, error) {
-	v, err := cfg.newConfigFromSection("matchbox", &matchboxConfig{})
-	return v.(*matchboxConfig), err
-}
-
-type networkConfig struct {
-	Gateway   string `ini:"gateway"`
-	IPs       string `ini:"ips"`
-	VIP       string `ini:"vip"`
-	EnableVIP bool   `ini:"enable_vip"`
-	VIPDomain string `ini:"vip_domain"`
+func (cfg *iniConfig) newMatchboxConfig() (*MatchboxConfig, error) {
+	v, err := cfg.newConfigFromSection("matchbox", &MatchboxConfig{})
+	if err != nil {
+		return nil, err
+	}
+	return v.(*MatchboxConfig), nil
 }
 
 type Config struct {
+	*DefaultConfig
+	N     *NetworkConfig
+	M     *MatchboxConfig
+	Nodes []*Node
+	Cls   *Cluster
+}
+
+type DefaultConfig struct {
 	Version    string   `ini:"version"`
 	Channel    string   `ini:"channel"`
 	DomainBase string   `ini:"domain_base"`
 	NodeIDs    []string `ini:"nodes"`
 	Keys       []string `ini:"keys"`
-	n          *networkConfig
-	M          *matchboxConfig
-	nodes      []*Node
-	cls        *Cluster
+}
+
+type MatchboxConfig struct {
+	URL    string `ini:"url"`
+	IP     string `ini:"ip"`
+	Domain string `ini:"domain"`
+}
+
+type NodeConfig struct {
+	MAC  string `ini:"mac"`
+	Role string `ini:"role"`
+	IP   string `ini:"ip"`
+}
+
+type NetworkConfig struct {
+	Gateway   string   `ini:"gateway"`
+	IPs       string   `ini:"ips"`
+	VIP       string   `ini:"vip"`
+	DNS       []string `ini:"dns"`
+	EnableVIP bool     `ini:"enable_vip"`
+	VIPDomain string   `ini:"vip_domain"`
 }
 
 func Load(file string) (*Config, error) {
@@ -104,19 +133,29 @@ func Load(file string) (*Config, error) {
 		return nil, err
 	}
 
-	c, err := cfg.newConfig()
-	if err != nil {
+	c := &Config{}
+
+	if c.DefaultConfig, err = cfg.newDefaultConfig(); err != nil {
 		log.Println("Load config failed:", err)
 		return nil, err
 	}
 
-	c.n, _ = cfg.newNetworkConfig()
-	c.M, _ = cfg.newMatchboxConfig()
-	c.nodes, _ = cfg.newNodes(c.NodeIDs)
-	c.cls = &Cluster{
+	if c.N, err = cfg.newNetworkConfig(); err != nil {
+		log.Println("Load network config failed:", err)
+	}
+
+	if c.M, err = cfg.newMatchboxConfig(); err != nil {
+		log.Println("Load matchbox config failed:", err)
+	}
+
+	if c.Nodes, err = cfg.newNodes(c.NodeIDs); err != nil {
+		log.Println("Load nodes failed:", err)
+	}
+
+	c.Cls = &Cluster{
 		M: c.M,
 		Network: &Network{
-			gateway: c.n.Gateway,
+			NetworkConfig: c.N,
 		},
 	}
 
@@ -154,23 +193,23 @@ func (c *Config) analyzeMatchbox() error {
 }
 
 func (c *Config) analyzeNodes() error {
-	for i, node := range c.nodes {
+	for i, node := range c.Nodes {
 		node.ID = c.NodeIDs[i]
 		node.Domain = node.ID
 		if len(c.DomainBase) == 0 {
 			node.Domain = node.Domain + "." + c.DomainBase
 		}
-		node.Cluster = c.cls
+		node.Cluster = c.Cls
 	}
 	return nil
 }
 
 func (c *Config) analyzeCluster() error {
-	initialCluster := make([]string, 0, len(c.nodes))
-	endpoints := make([]string, 0, len(c.nodes))
+	initialCluster := make([]string, 0, len(c.Nodes))
+	endpoints := make([]string, 0, len(c.Nodes))
 	hosts := make(map[string]string)
 	var controllerEndpoint string
-	for _, n := range c.nodes {
+	for _, n := range c.Nodes {
 		if n.Role == "master" {
 			initialCluster = append(initialCluster, fmt.Sprintf("%s=http://%s:2380", n.ID, n.Domain))
 			endpoints = append(endpoints, fmt.Sprintf("http://%s:2379", n.Domain))
@@ -185,11 +224,11 @@ func (c *Config) analyzeCluster() error {
 		log.Println("Convert keys into json array failed: ", err)
 		bs = []byte("[]")
 	}
-	c.cls.InitialCluster = strings.Join(initialCluster, ",")
-	c.cls.Endpoints = strings.Join(endpoints, ",")
-	c.cls.ControllerEndpoint = controllerEndpoint
-	c.cls.Hosts = hosts
-	c.cls.AuthorizedKeys = string(bs)
+	c.Cls.InitialCluster = strings.Join(initialCluster, ",")
+	c.Cls.Endpoints = strings.Join(endpoints, ",")
+	c.Cls.ControllerEndpoint = controllerEndpoint
+	c.Cls.Hosts = hosts
+	c.Cls.AuthorizedKeys = string(bs)
 	return nil
 }
 
@@ -204,7 +243,7 @@ func (c *Config) Generate() error {
 		log.Println("Write template install failed: ", err)
 	}
 
-	for _, n := range c.nodes {
+	for _, n := range c.Nodes {
 		var tmpl, name string
 		switch n.Role {
 		case "master":
@@ -220,6 +259,12 @@ func (c *Config) Generate() error {
 		if err != nil {
 			log.Println("Write template install failed: ", err)
 		}
+	}
+
+	err = writeTemplateToFile(DNSMASQ_TMPL, "dnsmasq",
+		filepath.Join(outputPath, "dnsmasq.conf"), c)
+	if err != nil {
+		log.Println("Write dnsmasq config failed: ", err)
 	}
 	return nil
 }
