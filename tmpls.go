@@ -36,6 +36,7 @@ const K8S_CONTROLLER_TMPL = `{
     "k8s_etcd_endpoints": "{{.Endpoints}}",
     "k8s_pod_network": "10.2.0.0/16",
     "k8s_service_ip_range": "10.3.0.0/24",
+    "interfaces": {{.Nics}},
     "ssh_authorized_keys": {{.AuthorizedKeys}}
   }
 }
@@ -57,6 +58,7 @@ const K8S_WORKER_TMPL = `{
     "k8s_cert_endpoint": "{{.M.URL}}/assets",
     "k8s_dns_service_ip": "10.3.0.10",
     "k8s_etcd_endpoints": "{{.Endpoints}}",
+    "interfaces": {{.Nics}},
     "ssh_authorized_keys": {{.AuthorizedKeys}}
   }
 }
