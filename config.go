@@ -197,9 +197,10 @@ func (c *Config) analyzeNodes() error {
 	for i, node := range c.Nodes {
 		node.ID = c.NodeIDs[i]
 		node.Domain = node.ID
-		if len(c.DomainBase) == 0 {
+		if len(c.DomainBase) != 0 {
 			node.Domain = node.Domain + "." + c.DomainBase
 		}
+
 		if len(node.Profile) == 0 {
 			node.Profile = "node"
 		}
