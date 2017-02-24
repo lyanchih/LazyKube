@@ -120,7 +120,7 @@ type NodeConfig struct {
 
 type NetworkConfig struct {
 	Gateway   string   `ini:"gateway"`
-	IPs       string   `ini:"ips"`
+	IPs       []string `ini:"ips"`
 	VIP       string   `ini:"vip"`
 	DNS       []string `ini:"dns"`
 	EnableVIP bool     `ini:"enable_vip"`
@@ -155,9 +155,6 @@ func Load(file string) (*Config, error) {
 
 	c.Cls = &Cluster{
 		M: c.M,
-		Network: &Network{
-			NetworkConfig: c.N,
-		},
 	}
 
 	if err = c.analyze(); err != nil {
@@ -184,7 +181,11 @@ func (c *Config) analyze() (err error) {
 }
 
 func (c *Config) analyzeNetwork() error {
-	// TODO: Implement network
+	n, err := newNetwork(c.N)
+	if err != nil {
+		return err
+	}
+	c.Cls.Network = n
 	return nil
 }
 
@@ -206,11 +207,20 @@ func (c *Config) analyzeNodes() error {
 		}
 
 		nics := make(NodeInterfaces, 0, len(node.IP))
-		for i, ip := range node.IP {
-			var mac string
-			if len(node.MAC) > i {
-				mac = node.MAC[i]
+		for i, mac := range node.MAC {
+			var ip string
+			if i < len(node.IP) && len(node.IP[i]) != 0 {
+				ip = node.IP[i]
+			} else {
+				ipnet, err := c.Cls.requestIP(mac, i)
+				if err != nil {
+					log.Println(err)
+					continue
+				}
+				ip = ipnet.String()
+				node.IP = append(node.IP, ip)
 			}
+
 			nics = append(nics, NodeInterface{
 				MAC:       mac,
 				IP:        ip,

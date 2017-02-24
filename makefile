@@ -1,4 +1,7 @@
 
+test:
+	find . -type f -name '*.go' | sed -E 's|^(.*)/.*\.go|\1|' | sort | uniq | xargs go test
+
 fmt:
 	find . -type f -name '*.go' -exec go fmt ";"
 

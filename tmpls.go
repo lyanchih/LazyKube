@@ -84,8 +84,8 @@ const DNSMASQ_TMPL = `# dnsmasq.conf
 dhcp-option=3,{{.Cls.Gateway}}
 
 {{ range $i, $node := .Nodes }}
-{{ range $index, $mac := .MAC }}
-dhcp-host={{$mac}},{{index $node.IP $index}},1h{{ end }}{{ end }}
+{{ range $index, $mac := .MAC }}{{if lt $index (len $node.IP) }}
+dhcp-host={{$mac}},{{index $node.IP $index}},1h{{ end }}{{ end }}{{ end }}
 
 enable-tftp
 tftp-root=/var/lib/tftpboot
@@ -106,8 +106,8 @@ address=/{{.Cls.VIPDomain}}/{{.Cls.VIP}}
 {{end}}
 
 ##### node address #####
-{{range .Nodes}}
-address=/{{.Domain}}/{{index .IP 0}}{{end}}
+{{range .Nodes}}{{if gt (len .IP) 0}}
+address=/{{.Domain}}/{{index .IP 0}}{{end}}{{end}}
 
 ##### dns server #####
 {{range .Cls.DNS}}
