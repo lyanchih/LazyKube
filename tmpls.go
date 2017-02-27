@@ -83,8 +83,7 @@ const DNSMASQ_TMPL = `# dnsmasq.conf
 
 dhcp-option=3,{{.Cls.Gateway}}
 
-{{ range $i, $node := .Nodes }}
-{{ range $index, $mac := .MAC }}{{if lt $index (len $node.IP) }}
+{{ range $i, $node := .Nodes }}{{ range $index, $mac := .MAC }}{{if lt $index (len $node.IP) }}
 dhcp-host={{$mac}},{{index $node.IP $index}},1h{{ end }}{{ end }}{{ end }}
 
 enable-tftp
@@ -97,21 +96,19 @@ dhcp-boot=tag:ipxe,{{.M.URL}}/boot.ipxe
 log-queries
 log-dhcp
 
-address=/bootcfg.foo/172.18.0.2
 address=/{{.M.Domain}}/{{.M.IP}}
 
 ##### vip address #####
-{{if .Cls.EnableVIP }}
-address=/{{.Cls.VIPDomain}}/{{.Cls.VIP}}
-{{end}}
+{{with .V }}{{if .Enable }}
+address=/{{.Domain}}/{{.VIP}}{{end}}{{end}}
 
 ##### node address #####
 {{range .Nodes}}{{if gt (len .IP) 0}}
 address=/{{.Domain}}/{{index .IP 0}}{{end}}{{end}}
 
 ##### dns server #####
-{{range .Cls.DNS}}
-server={{.}}{{end}}
+{{with .D}}{{range .DNS}}
+server={{.}}{{end}}{{end}}
 `
 
 func writeTemplateToFile(tmplContent, name, fileName string, data interface{}) error {

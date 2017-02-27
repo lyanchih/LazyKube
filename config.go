@@ -89,10 +89,28 @@ func (cfg *iniConfig) newMatchboxConfig() (*MatchboxConfig, error) {
 	return v.(*MatchboxConfig), nil
 }
 
+func (cfg *iniConfig) newDNSConfig() (*DNSConfig, error) {
+	v, err := cfg.newConfigFromSection("dns", &DNSConfig{})
+	if err != nil {
+		return nil, err
+	}
+	return v.(*DNSConfig), nil
+}
+
+func (cfg *iniConfig) newVIPConfig() (*VIPConfig, error) {
+	v, err := cfg.newConfigFromSection("vip", &VIPConfig{})
+	if err != nil {
+		return nil, err
+	}
+	return v.(*VIPConfig), nil
+}
+
 type Config struct {
 	*DefaultConfig
 	N     *NetworkConfig
 	M     *MatchboxConfig
+	D     *DNSConfig
+	V     *VIPConfig
 	Nodes []*Node
 	Cls   *Cluster
 }
@@ -119,12 +137,19 @@ type NodeConfig struct {
 }
 
 type NetworkConfig struct {
-	Gateway   string   `ini:"gateway"`
-	IPs       []string `ini:"ips"`
-	VIP       string   `ini:"vip"`
-	DNS       []string `ini:"dns"`
-	EnableVIP bool     `ini:"enable_vip"`
-	VIPDomain string   `ini:"vip_domain"`
+	Gateway string   `ini:"gateway"`
+	IPs     []string `ini:"ips"`
+}
+
+type DNSConfig struct {
+	DNS    []string `ini:"dns"`
+	Driver string   `ini:"driver"`
+}
+
+type VIPConfig struct {
+	Enable bool   `ini:"enable"`
+	VIP    string `ini:"vip"`
+	Domain string `ini:"domain"`
 }
 
 func Load(file string) (*Config, error) {
@@ -147,6 +172,14 @@ func Load(file string) (*Config, error) {
 
 	if c.M, err = cfg.newMatchboxConfig(); err != nil {
 		log.Println("Load matchbox config failed:", err)
+	}
+
+	if c.D, err = cfg.newDNSConfig(); err != nil {
+		log.Println("Load dns config failed:", err)
+	}
+
+	if c.V, err = cfg.newVIPConfig(); err != nil {
+		log.Println("Load vip config failed:", err)
 	}
 
 	if c.Nodes, err = cfg.newNodes(c.NodeIDs); err != nil {
