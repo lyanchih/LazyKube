@@ -81,7 +81,10 @@ const NODE_TMPL = `{
 
 const DNSMASQ_TMPL = `# dnsmasq.conf
 
-dhcp-option=3,{{.Cls.Gateway}}
+dhcp-option=3,{{.N.Gateway}}
+
+{{ with (.Cls.GetKeepIPRange) }}
+dhcp-range={{.Start}},{{.End}}{{ end }}
 
 {{ range $i, $node := .Nodes }}{{ range $index, $mac := .MAC }}{{if lt $index (len $node.IP) }}
 dhcp-host={{$mac}},{{index $node.IP $index}},1h{{ end }}{{ end }}{{ end }}

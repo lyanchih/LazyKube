@@ -63,12 +63,12 @@ func TestIPPoolPatternReg(t *testing.T) {
 	}
 
 	category := "IPs"
-	in := []string{"192.168.0.0", "192.168.0.0/24", "192.168.0.0/24;192.168.0.10",
-		"192.168.0.0/24;192.168.0.10-192.168.0.20", "192.168.0.0/24;192.168.0.10-192.168.0.250"}
+	in := []string{"192.168.0.0", "192.168.0.0/24", "192.168.0.0/24:192.168.0.10",
+		"192.168.0.0/24:192.168.0.10-192.168.0.20", "192.168.0.0/24:192.168.0.10-192.168.0.250"}
 	testRegMatch(t, r, in, true, category)
 
 	in = []string{"192.168.0.256", "192.168.0.0\\24", "192.168.0.0/24|192.168.0.10",
-		"192.168.0.0/24-192.168.0.10", "192.168.0.0/24-192.168.0.10", "192.168.0.0/24;-192.168.0.10"}
+		"192.168.0.0/24-192.168.0.10", "192.168.0.0/24-192.168.0.10", "192.168.0.0/24:-192.168.0.10"}
 	testRegMatch(t, r, in, false, category)
 }
 
@@ -119,84 +119,137 @@ func testPoolResult(t *testing.T, p networkPool, ipnet, start, end string) {
 
 func TestNewNetworkPool(t *testing.T) {
 	// Test default class A netmask
-	p, err := newNetworkPool("8.0.103.5")
+	p, err := newNetworkPool("8.0.103.5", ipPoolKeepIP)
 	if err != nil {
 		t.Fatal(err)
 	}
 	testPoolResult(t, p, "8.0.0.0/8", "8.0.0.1", "8.255.255.255")
 
 	// Test default class B netmask
-	p, err = newNetworkPool("172.32.200.5")
+	p, err = newNetworkPool("172.32.200.5", ipPoolKeepIP)
 	if err != nil {
 		t.Fatal(err)
 	}
 	testPoolResult(t, p, "172.32.0.0/16", "172.32.0.1", "172.32.255.255")
 
 	// Test default class C netmask
-	p, err = newNetworkPool("192.168.0.5")
+	p, err = newNetworkPool("192.168.0.5", ipPoolKeepIP)
 	if err != nil {
 		t.Fatal(err)
 	}
 	testPoolResult(t, p, "192.168.0.0/24", "192.168.0.1", "192.168.0.255")
 
 	// Test custom netmask
-	p, err = newNetworkPool("192.168.0.5/14")
+	p, err = newNetworkPool("192.168.0.5/14", ipPoolKeepIP)
 	if err != nil {
 		t.Fatal(err)
 	}
 	testPoolResult(t, p, "192.168.0.0/14", "192.168.0.1", "192.171.255.255")
 
 	// Test custom netmask with start ip
-	p, err = newNetworkPool("192.168.0.5/16;192.168.250.87")
+	p, err = newNetworkPool("192.168.0.5/16:192.168.250.87", ipPoolKeepIP)
 	if err != nil {
 		t.Fatal(err)
 	}
 	testPoolResult(t, p, "192.168.0.0/16", "192.168.250.87", "192.168.255.255")
 
 	// Test custom netmask with end ip
-	p, err = newNetworkPool("192.168.0.5/16;192.168.0.87-192.168.5.144")
+	p, err = newNetworkPool("192.168.0.5/16:192.168.0.87-192.168.5.144", ipPoolKeepIP)
 	if err != nil {
 		t.Fatal(err)
 	}
 	testPoolResult(t, p, "192.168.0.0/16", "192.168.0.87", "192.168.5.144")
 
 	// Test default netmask with wrong start ip
-	s := "192.168.56.5;172.0.0.5"
-	p, err = newNetworkPool(s)
+	s := "192.168.56.5:172.0.0.5"
+	p, err = newNetworkPool(s, ipPoolKeepIP)
 	if err != startIPNotInCIDR {
 		t.Fatalf("%s should have startIPNotInCIDR error\n", s)
 	}
 	testPoolResult(t, p, "192.168.56.0/24", "192.168.56.1", "192.168.56.255")
 
 	// Test netmask with wrong start ip
-	s = "192.168.0.5/16;172.0.0.5"
-	p, err = newNetworkPool(s)
+	s = "192.168.0.5/16:172.0.0.5"
+	p, err = newNetworkPool(s, ipPoolKeepIP)
 	if err != startIPNotInCIDR {
 		t.Fatalf("%s should have startIPNotInCIDR error\n", s)
 	}
 	testPoolResult(t, p, "192.168.0.0/16", "192.168.0.1", "192.168.255.255")
 
 	// Test default netmask with wrong end ip
-	s = "192.168.0.5;192.168.0.2-192.168.2.5"
-	p, err = newNetworkPool(s)
+	s = "192.168.0.5:192.168.0.2-192.168.2.5"
+	p, err = newNetworkPool(s, ipPoolKeepIP)
 	if err != endIPNotInCIDR {
 		t.Fatalf("%s should have endIPNotInCIDR error\n", s)
 	}
 	testPoolResult(t, p, "192.168.0.0/24", "192.168.0.2", "192.168.0.255")
 
 	// Test netmask with wrong end ip
-	s = "192.168.0.5/16;192.168.128.2-192.169.2.5"
-	p, err = newNetworkPool(s)
+	s = "192.168.0.5/16:192.168.128.2-192.169.2.5"
+	p, err = newNetworkPool(s, ipPoolKeepIP)
 	if err != endIPNotInCIDR {
 		t.Fatalf("%s should have endIPNotInCIDR error\n", s)
 	}
 	testPoolResult(t, p, "192.168.0.0/16", "192.168.128.2", "192.168.255.255")
 
 	// Test netmask with smaller end ip
-	s = "192.168.0.5/16;192.168.128.10-192.168.128.1"
-	p, err = newNetworkPool(s)
+	s = "192.168.0.5/16:192.168.128.10-192.168.128.1"
+	p, err = newNetworkPool(s, ipPoolKeepIP)
 	if err != endIPTooSmall {
 		t.Fatalf("%s should have endIPTooSmall error\n", s)
 	}
 	testPoolResult(t, p, "192.168.0.0/16", "192.168.128.10", "192.168.255.255")
+}
+
+func TestNetworkPoolRequestIP(t *testing.T) {
+	var s string
+	var p networkPool
+	var err error
+	testRequest := func(ipString string, expectedErr error) {
+		ip, err := p.requestIP("")
+		if expectedErr != nil && err == expectedErr {
+			return
+		}
+		if err != nil {
+			t.Fatalf("%s request ip %s failed: %s", s, ipString, err)
+		}
+
+		if ipString != ip.String() {
+			t.Fatalf("%s request %s is not match with %s", s, ip.String(), ipString)
+		}
+	}
+
+	s = "192.168.99.5/24:192.168.99.55"
+	p, err = newNetworkPool(s, ipPoolKeepIP)
+	if err != nil {
+		t.Fatal(err)
+	}
+	testRequest("192.168.99.55", nil)
+	testRequest("192.168.99.56", nil)
+	testRequest("192.168.99.57", nil)
+
+	s = "1.2.3.5/16:1.2.3.105-1.2.3.127"
+	p, err = newNetworkPool(s, ipPoolKeepIP)
+	if err != nil {
+		t.Fatal(err)
+	}
+	testRequest("1.2.3.105", nil)
+	testRequest("1.2.3.106", nil)
+	testRequest("1.2.3.107", nil)
+	testRequest("", ipIsNotEnough)
+
+	s = "1.2.3.5/16:1.2.3.200-1.2.3.202"
+	p, err = newNetworkPool(s, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	testRequest("1.2.3.200", nil)
+	testRequest("", ipIsNotEnough)
+
+	// test ip is not enought for keep ip
+	s = "1.2.3.5/24:1.2.3.240"
+	p, err = newNetworkPool(s, ipPoolKeepIP)
+	if err != poolCanNotKeep {
+		t.Fatal(err)
+	}
 }

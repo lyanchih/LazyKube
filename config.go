@@ -137,8 +137,9 @@ type NodeConfig struct {
 }
 
 type NetworkConfig struct {
-	Gateway string   `ini:"gateway"`
-	IPs     []string `ini:"ips"`
+	Gateway   string   `ini:"gateway"`
+	IPs       []string `ini:"ips"`
+	DHCP_keep int      `ini:"dhcp_keep"`
 }
 
 type DNSConfig struct {
