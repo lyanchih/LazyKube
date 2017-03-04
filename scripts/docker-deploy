@@ -1,0 +1,30 @@
+#!/bin/bash
+#
+# This script will deploy matchbox and dnsmasq, which is used for dns,
+# tftp and dhcp service, by docker, plase confirm you can connect to
+# docker hub.
+#
+
+
+############################## CAUTION ##############################
+#                                                                   #
+# Before you begin to deploy your kubernetes cluster, do not forget #
+# to download coreos pxe image. You can using following script to   #
+# download coreos pxe image.                                        #
+#                                                                   #
+# $ ./scripts/get-coreos stable 1235.9.0 contrib/matchbox/assets    #
+#                                                                   #
+# coreos image should been download into matchbox's assets folder   #
+#                                                                   #
+#####################################################################
+
+set -e
+
+MATCHBOX_DIR=${MATCHBOX_DIR:=contrib/matchbox}
+GROUPS_DIR=${MATCHBOX_DIR:=_output}
+
+[ -d "$MATCHBOX_DIR/assets" ] || mkdir "$MATCHBOX_DIR/assets"
+
+docker run -d --name matchbox -p 8080:8080 --rm -v $MATCHBOX_DIR:/var/lib/matchbox:Z -v $GROUPS_DIR:/var/lib/matchbox/groups:Z quay.io/coreos/matchbox:latest -address=0.0.0.0:8080 -log-level=debug
+
+docker run -d --name dnsmasq --cap-add=NET_ADMIN -v $GROUPS_DIR/dnsmasq.conf:/etc/dnsmasq.conf:Z quay.io/coreos/dnsmasq
