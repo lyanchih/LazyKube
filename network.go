@@ -1,6 +1,7 @@
 package lazy
 
 import (
+	"encoding/binary"
 	"errors"
 	"log"
 	"net"
@@ -24,27 +25,16 @@ var (
 )
 
 func ipv4ToUint32(ip net.IP) (n uint32) {
-	if ip == nil {
-		return n
-	}
-	if ip = ip.To4(); ip == nil {
+	if ip == nil || ip.To4() == nil {
 		return n
 	}
 
-	for i, b := range ip {
-		s := uint32(b)
-		n += (1 << (uint(8 * (3 - i)))) * s
-	}
-
-	return n
+	return binary.BigEndian.Uint32(ip.To4())
 }
 
 func uint32ToIPv4(n uint32) (ip net.IP) {
 	bs := make([]byte, 4)
-	for i, v := range []uint32{1 << 24, 1 << 16, 1 << 8, 1} {
-		bs[i] = byte(n / v)
-		n = n % v
-	}
+	binary.BigEndian.PutUint32(bs, n)
 	return net.IPv4(bs[0], bs[1], bs[2], bs[3])
 }
 
