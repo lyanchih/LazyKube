@@ -52,7 +52,19 @@ Commands:"
 EOF
 }
 
-COMMON_VIRT_OPTS="--memory=1024 --vcpus=1 --pxe --disk pool=default,size=6 --os-type=linux --os-variant=generic --noautoconsole --events on_poweroff=preserve"
+COMMON_VIRT_OPTS="--memory=1024 --vcpus=1 --pxe --disk pool=default,size=15 --os-type=linux --os-variant=generic --noautoconsole --events on_poweroff=preserve"
+
+function check_and_create_internal_bridge {
+    local br=$1
+
+    if [ -z "$br" ]; then
+        br="kube0"
+    fi
+
+    if [ ! -z "$(brctl show $br 2>&1 | grep 'No such device')" ]; then
+        brctl addbr $br
+    fi
+}
 
 function create_docker {
     local network=""
@@ -62,6 +74,7 @@ function create_docker {
             if [ -z "$network" ]; then
                 network="--network=bridge:docker0,mac=$mac"
             else
+                check_and_create_internal_bridge
                 network="$network --network=bridge:kube0,mac=$mac"
             fi
         done
