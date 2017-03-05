@@ -8,8 +8,8 @@ fmt:
 build: build_dir build_linux build_windows build_darwin link_build
 
 clean:
-	rm -rf _bin/
-	rm -rf _output/
+	rm -rf _bin/*
+	rm -rf _output/*
 
 ##### BUILD #####
 ## BUILD VARIABLE ##
