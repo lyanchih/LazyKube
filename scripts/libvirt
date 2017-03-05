@@ -63,6 +63,7 @@ function check_and_create_internal_bridge {
 
     if [ ! -z "$(brctl show $br 2>&1 | grep 'No such device')" ]; then
         brctl addbr $br
+        ip link set dev $br up
     fi
 }
 
