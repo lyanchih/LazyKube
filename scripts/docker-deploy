@@ -20,11 +20,41 @@
 
 set -e
 
-MATCHBOX_DIR=${MATCHBOX_DIR:=contrib/matchbox}
-GROUPS_DIR=${MATCHBOX_DIR:=_output}
+MATCHBOX_DIR=${MATCHBOX_DIR:=$PWD/contrib/matchbox}
+GROUPS_DIR=${GROUPS_DIR:=$PWD/_output}
 
+[ -d "$MATCHBOX_DIR" ] || mkdir -p $MATCHBOX_DIR
+[ -d "$GROUPS_DIR" ] || mkdir -p $GROUPS_DIR
 [ -d "$MATCHBOX_DIR/assets" ] || mkdir "$MATCHBOX_DIR/assets"
 
-docker run -d --name matchbox -p 8080:8080 --rm -v $MATCHBOX_DIR:/var/lib/matchbox:Z -v $GROUPS_DIR:/var/lib/matchbox/groups:Z quay.io/coreos/matchbox:latest -address=0.0.0.0:8080 -log-level=debug
+function check_container_exist {
+    local name=$1
 
-docker run -d --name dnsmasq --cap-add=NET_ADMIN -v $GROUPS_DIR/dnsmasq.conf:/etc/dnsmasq.conf:Z quay.io/coreos/dnsmasq
+    docker ps -a | awk -e "BEGIN{e = 1} /$name/{ e = 0 } END{ exit e }" && return 0 || return 1
+}
+
+run_matchbox() {
+    docker run -d --name matchbox -p 8080:8080 -v $MATCHBOX_DIR:/var/lib/matchbox:Z -v $GROUPS_DIR:/var/lib/matchbox/groups:Z quay.io/coreos/matchbox:latest -address=0.0.0.0:8080 -log-level=debug
+}
+
+run_dnsmasq() {
+    docker run -d --name dnsmasq --cap-add=NET_ADMIN -v $GROUPS_DIR/dnsmasq.conf:/etc/dnsmasq.conf:Z quay.io/coreos/dnsmasq -d
+}
+
+if ! check_container_exist matchbox; then
+    run_matchbox
+else
+    docker restart matchbox >/dev/null
+fi
+
+echo "Matchbox IP: $(docker inspect -f '{{index . "NetworkSettings" "IPAddress"}}' matchbox)"
+
+[ -f "$GROUPS_DIR/dnsmasq.conf" ] || (touch "$GROUPS_DIR/dnsmasq.conf"; chmod 666 "$GROUPS_DIR/dnsmasq.conf")
+if ! check_container_exist dnsmasq; then    
+    run_dnsmasq
+else
+    if ! docker restart dnsmasq >/dev/null 2>/dev/null; then
+        docker rm dnsmasq
+        run_dnsmasq
+    fi
+fi
