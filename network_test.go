@@ -35,7 +35,7 @@ func TestIPPatternReg(t *testing.T) {
 	}
 
 	category := "IP"
-	in := []string{"1.2.3.4"}
+	in := []string{"1.2.3.4", "172.17.0.100"}
 	testRegMatch(t, r, in, true, category)
 
 	in = []string{"1.2.3.256", "8.8.8+8", "8.8+8.8", "1.2.3.", "1.2.", "256.1.2.3"}

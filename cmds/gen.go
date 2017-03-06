@@ -14,7 +14,10 @@ func init() {
 func main() {
 	flag.Parse()
 
-	c, _ := lazy.Load(configFile)
+	c, err := lazy.Load(configFile);
+  if err != nil {
+    return
+  }
 
-	c.Generate()
+  c.Generate()
 }

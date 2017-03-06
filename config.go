@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/go-ini/ini"
 	"log"
+	"net"
 	"os"
 	"path/filepath"
 	"strings"
@@ -208,6 +209,9 @@ func (c *Config) analyze() (err error) {
 	if err = c.analyzeNodes(); err != nil {
 		return errors.New("Analyze nodes failed: " + err.Error())
 	}
+	if err = c.analyzeVIP(); err != nil {
+		return errors.New("Analyze VIP failed: " + err.Error())
+	}
 	if err = c.analyzeCluster(); err != nil {
 		return errors.New("Analyze cluster failed: " + err.Error())
 	}
@@ -267,6 +271,39 @@ func (c *Config) analyzeNodes() error {
 	return nil
 }
 
+func (c *Config) analyzeVIP() error {
+	if c.V == nil || !c.V.Enable {
+		return nil
+	}
+
+	vip := c.V.VIP
+	if !validateIPv4(vip) {
+		return errors.New("VIP format is not correct: " + vip)
+	}
+
+	for _, np := range c.Cls.Network.pools {
+		if !np.Contains(net.ParseIP(vip)) {
+			continue
+		}
+
+		for _, node := range c.Nodes {
+			for _, nic := range node.Nics {
+				if !np.Contains(net.ParseIP(nic.IP)) {
+					continue
+				}
+
+				node.VIP = &NodeInterface{
+					IP:        vip,
+					Interface: nic.Interface,
+				}
+			}
+		}
+		return nil
+	}
+
+	return errors.New("VIP can not find relative network pool: " + vip)
+}
+
 func (c *Config) analyzeCluster() error {
 	var controllerEndpoint string
 	initialCluster := make([]string, 0, len(c.Nodes))
@@ -280,6 +317,10 @@ func (c *Config) analyzeCluster() error {
 				controllerEndpoint = fmt.Sprintf("https://%s", n.Domain)
 			}
 		}
+	}
+
+	if c.V != nil && c.V.Enable {
+		controllerEndpoint = fmt.Sprintf("https://%s", c.V.Domain)
 	}
 
 	bs, err := json.Marshal(c.Keys)

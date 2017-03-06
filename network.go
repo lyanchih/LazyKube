@@ -15,6 +15,7 @@ const ipPoolPattern = "^(?P<ip>" + ipPattern + ")(?:/(?P<netmask>" + netmaskPatt
 
 var (
 	ipPoolKeepIP     = uint32(20)
+	ipReg            = regexp.MustCompile("^" + ipPattern + "$")
 	ipPoolReg        = regexp.MustCompile(ipPoolPattern)
 	ipPoolMatchError = errors.New("IP pool is not match")
 	startIPNotInCIDR = errors.New("Start IP of pool is not in CIDR")
@@ -23,6 +24,10 @@ var (
 	ipIsNotEnough    = errors.New("IP pool is empty")
 	poolCanNotKeep   = errors.New("Pool can not keep so mush ip for dhcp")
 )
+
+func validateIPv4(ip string) bool {
+	return ipReg.MatchString(ip)
+}
 
 func ipv4ToUint32(ip net.IP) (n uint32) {
 	if ip == nil || ip.To4() == nil {

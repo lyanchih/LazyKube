@@ -713,6 +713,41 @@ storage:
             ports:
             - port: 80
               targetPort: 9090
+    {{ with .vip }}
+    - path: /etc/kubernetes/manifests/keepalived-pod.yaml
+      filesystem: root
+      contents:
+        inline: |
+          apiVersion: v1
+          kind: Pod
+          metadata:
+            name: keepalived
+            namespace: kube-system
+            labels:
+              system: load-balance
+          spec:
+            hostNetwork: true
+            containers:
+            - name: keepalived
+              image: neoassist/docker-keepalived
+              securityContext:
+                capabilities:
+                  add:
+                  - NET_ADMIN
+              env:
+              - name: VIRTUAL_IP
+                value: {{.ip}}
+              - name: VIRTUAL_MASK
+                value: "24"
+              - name: CHECK_IP
+                value: "*"
+              - name: CHECK_PORT
+                value: "2379"
+              - name: VRID
+                value: "51"
+              - name: INTERFACE
+                value: {{.interface}}
+    {{ end }}
     - path: /opt/init-flannel
       filesystem: root
       mode: 0544
