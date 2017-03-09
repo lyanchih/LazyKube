@@ -13,12 +13,11 @@ clean:
 
 ##### BUILD #####
 ## BUILD VARIABLE ##
-cmds := $(basename $(notdir $(wildcard cmds/*.go)))
+bin_name := lazykube
+cmds := $(wildcard cmds/*.go)
 
 ## BUILD FUNCTION ##
-build = GOOS=$(1) GOARCH=$(2) go build -o _bin/$(1)_$(2)_$(3) cmds/$(3).go
-
-builds = $(foreach cmd,$(cmds),$(call build,$(1),$(2),$(basename $(cmd))))
+build = GOOS=$(1) GOARCH=$(2) go build -o _bin/$(1)_$(2)_$(bin_name) $(cmds)
 
 build_dir:
 	[ -d _bin ] || mkdir _bin
@@ -27,31 +26,31 @@ build_dir:
 build_linux: build/linux_arm build/linux_arm64 build/linux_386 build/linux_amd64
 
 build/linux_386:
-	$(call builds,linux,386,)
+	$(call build,linux,386,)
 
 build/linux_amd64:
-	$(call builds,linux,amd64,)
+	$(call build,linux,amd64,)
 
 build/linux_arm:
-	$(call builds,linux,arm,)
+	$(call build,linux,arm,)
 
 build/linux_arm64:
-	$(call builds,linux,arm64,)
+	$(call build,linux,arm64,)
 
 ##### DARWIN (MAC) BUILDS #####
 build_darwin: build/darwin_amd64
 
 build/darwin_amd64:
-	$(call builds,darwin,amd64,)
+	$(call build,darwin,amd64,)
 
 ##### WINDOWS BUILDS #####
 build_windows: build/windows_386 build/windows_amd64
 
 build/windows_386:
-	$(call builds,windows,386,)
+	$(call build,windows,386,)
 
 build/windows_amd64:
-	$(call builds,windows,amd64,)
+	$(call build,windows,amd64,)
 
 ##### LINK BUILD FILE #####
 uname := $(shell uname -s | tr A-Z a-z)
@@ -66,4 +65,6 @@ else ifneq (,$(findstring $(arch),arm))
 else ifneq (,$(findstring $(arch),i86 86))
 	$(eval arch="386")
 endif
-	$(foreach cmd,$(cmds),$(shell ln -s  $(uname)_$(arch)_$(cmd) _bin/$(cmd)))
+	[ -L _bin/$(bin_name) -o -f _bin/$(bin_name) ] && rm _bin/$(bin_name) || true
+	ln -s  $(uname)_$(arch)_$(bin_name) _bin/$(bin_name)
+

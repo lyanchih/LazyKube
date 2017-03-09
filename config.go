@@ -3,7 +3,6 @@ package lazy
 import (
 	"encoding/json"
 	"errors"
-	"flag"
 	"fmt"
 	"github.com/go-ini/ini"
 	"log"
@@ -12,12 +11,6 @@ import (
 	"path/filepath"
 	"strings"
 )
-
-var outputPath string
-
-func init() {
-	flag.StringVar(&outputPath, "output", "_output", "Output path")
-}
 
 type iniConfig ini.File
 
@@ -336,7 +329,7 @@ func (c *Config) analyzeCluster() error {
 	return nil
 }
 
-func (c *Config) Generate() error {
+func (c *Config) Generate(outputPath string) error {
 	err := os.MkdirAll(outputPath, 0744)
 	if err != nil {
 		log.Fatal("Make output path ", outputPath, "fail")

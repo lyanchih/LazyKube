@@ -1,0 +1,28 @@
+{
+	"ImportPath": "github.com/lyanchih/LazyKube",
+	"GoVersion": "go1.7",
+	"GodepVersion": "v79",
+	"Packages": [
+		".",
+		"./cmds/"
+	],
+	"Deps": [
+		{
+			"ImportPath": "github.com/go-ini/ini",
+			"Comment": "v1.24.0-2-gee900ca",
+			"Rev": "ee900ca565931451fe4e4409bcbd4316331cec1c"
+		},
+		{
+			"ImportPath": "github.com/inconshreveable/mousetrap",
+			"Rev": "76626ae9c91c4f2a10f34cad8ce83ea42c93bb75"
+		},
+		{
+			"ImportPath": "github.com/spf13/cobra",
+			"Rev": "6e91dded25d73176bf7f60b40dd7aa1f0bf9be8d"
+		},
+		{
+			"ImportPath": "github.com/spf13/pflag",
+			"Rev": "5ccb023bc27df288a957c5e994cd44fd19619465"
+		}
+	]
+}
