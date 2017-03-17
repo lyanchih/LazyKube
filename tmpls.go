@@ -82,37 +82,59 @@ const NODE_TMPL = `{
 
 const DNSMASQ_TMPL = `# dnsmasq.conf
 
+### DHCP CONFIG ###
+{{- if .N.Gateway }}
 dhcp-option=3,{{.N.Gateway}}
+{{- end }}
 
-{{ with (.Cls.GetKeepIPRange) }}
-dhcp-range={{.Start}},{{.End}}{{ end }}
+{{- with (.Cls.GetKeepIPRange) }}
+dhcp-range={{.Start}},{{.End}}
+{{- end }}
 
-{{ range $i, $node := .Nodes }}{{ range $index, $mac := .MAC }}{{if lt $index (len $node.IP) }}
-dhcp-host={{$mac}},{{index $node.IP $index}},1h{{ end }}{{ end }}{{ end }}
-
-enable-tftp
-tftp-root=/var/lib/tftpboot
+{{- range $i, $node := .Nodes }}
+  {{- range $index, $mac := .MAC }}
+    {{- if lt $index (len $node.IP) }}
+dhcp-host={{$mac}},{{index $node.IP $index}},1h
+    {{- end }}
+  {{- end }}
+{{- end }}
 
 dhcp-userclass=set:ipxe,iPXE
 dhcp-boot=tag:#ipxe,undionly.kpxe
 dhcp-boot=tag:ipxe,{{.M.URL}}/boot.ipxe
 
-log-queries
-log-dhcp
+### TFTP CONFIG ###
+enable-tftp
+tftp-root=/var/lib/tftpboot
+
+### DNS CONFIG ###
 
 address=/{{.M.Domain}}/{{.M.IP}}
 
 ##### vip address #####
-{{with .V }}{{if .Enable }}
-address=/{{.Domain}}/{{.VIP}}{{end}}{{end}}
+{{- with .V }}
+  {{- if .Enable }}
+address=/{{.Domain}}/{{.VIP}}
+  {{- end }}
+{{- end }}
 
 ##### node address #####
-{{range .Nodes}}{{if gt (len .IP) 0}}
-address=/{{.Domain}}/{{index .IP 0}}{{end}}{{end}}
+{{- range .Nodes }}
+  {{- if gt (len .IP) 0 }}
+address=/{{.Domain}}/{{index .IP 0}}
+  {{- end }}
+{{- end }}
 
 ##### dns server #####
-{{with .D}}{{range .DNS}}
-server={{.}}{{end}}{{end}}
+{{- with .D }}
+  {{- range .DNS }}
+server={{.}}
+  {{- end }}
+{{- end }}
+
+### OTHER CONFIG ###
+log-queries
+log-dhcp
 `
 
 func writeTemplateToFile(tmplContent, name, fileName string, data interface{}) error {
