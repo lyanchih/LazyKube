@@ -274,17 +274,25 @@ storage:
 
 networkd:
   units:
-    {{ range $index, $nic := .interfaces }}
-    {{ if gt $index 0}}
+    {{- range $index, $nic := .interfaces }}
     - name: "00-{{$nic.interface}}.network"
       contents: |
         [Match]
         Name={{$nic.interface}}
         
         [Network]
+        {{- if $nic.dhcp }}
+        DHCP=ipv4
+        {{- else }}
         Address={{$nic.ip}}/24
-    {{ end }}
-    {{ end }}
+        {{- end }}
+
+        {{- if $nic.gateway }}
+        [Route]
+        Gateway={{$nic.gateway}}
+        Destination=0.0.0.0/0
+        {{- end }}
+    {{- end }}
 {{ if index . "ssh_authorized_keys" }}
 passwd:
   users:

@@ -87,6 +87,14 @@ func (n *Network) requestIP(mac string, poolIndex int) (net.IP, error) {
 	return n.pools[poolIndex].requestIP(mac)
 }
 
+func (n *Network) ContainIP(ip string, i int) bool {
+	if i >= len(n.pools) {
+		return false
+	}
+
+	return n.pools[i].Contains(net.ParseIP(ip))
+}
+
 func (n *Network) GetKeepIPRange() (ir ipRange, err error) {
 	if len(n.pools) == 0 {
 		return ir, errors.New("Do not have any ip pool")

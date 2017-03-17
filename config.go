@@ -72,7 +72,12 @@ func (cfg *iniConfig) newNetworkConfig() (*NetworkConfig, error) {
 	if err != nil {
 		return nil, err
 	}
-	return v.(*NetworkConfig), nil
+
+	n := v.(*NetworkConfig)
+	if len(n.InterfaceBase) == 0 {
+		n.InterfaceBase = "eth"
+	}
+	return n, nil
 }
 
 func (cfg *iniConfig) newMatchboxConfig() (*MatchboxConfig, error) {
@@ -91,6 +96,15 @@ func (cfg *iniConfig) newDNSConfig() (*DNSConfig, error) {
 	return v.(*DNSConfig), nil
 }
 
+func (cfg *iniConfig) newDHCPConfig() (*DHCPConfig, error) {
+	v, err := cfg.newConfigFromSection("dns", &DHCPConfig{})
+	if err != nil {
+		return nil, err
+	}
+
+	return v.(*DHCPConfig), nil
+}
+
 func (cfg *iniConfig) newVIPConfig() (*VIPConfig, error) {
 	v, err := cfg.newConfigFromSection("vip", &VIPConfig{})
 	if err != nil {
@@ -104,6 +118,7 @@ type Config struct {
 	N     *NetworkConfig
 	M     *MatchboxConfig
 	D     *DNSConfig
+	DHCP  *DHCPConfig
 	V     *VIPConfig
 	Nodes []*Node
 	Cls   *Cluster
@@ -131,14 +146,20 @@ type NodeConfig struct {
 }
 
 type NetworkConfig struct {
-	Gateway   string   `ini:"gateway"`
-	IPs       []string `ini:"ips"`
-	DHCP_keep int      `ini:"dhcp_keep"`
+	Gateway       string   `ini:"gateway"`
+	IPs           []string `ini:"ips"`
+	DHCP_keep     int      `ini:"dhcp_keep"`
+	InterfaceBase string   `ini:"interface_base"`
 }
 
 type DNSConfig struct {
 	DNS    []string `ini:"dns"`
 	Driver string   `ini:"driver"`
+}
+
+type DHCPConfig struct {
+	Enable    bool   `ini:"enable"`
+	Interface string `ini:"interface"`
 }
 
 type VIPConfig struct {
@@ -163,22 +184,32 @@ func Load(file string) (*Config, error) {
 
 	if c.N, err = cfg.newNetworkConfig(); err != nil {
 		log.Println("Load network config failed:", err)
+		return nil, err
 	}
 
 	if c.M, err = cfg.newMatchboxConfig(); err != nil {
 		log.Println("Load matchbox config failed:", err)
+		return nil, err
 	}
 
 	if c.D, err = cfg.newDNSConfig(); err != nil {
 		log.Println("Load dns config failed:", err)
+		return nil, err
+	}
+
+	if c.DHCP, err = cfg.newDHCPConfig(); err != nil {
+		log.Println("Load dhcp config failed:", err)
+		return nil, err
 	}
 
 	if c.V, err = cfg.newVIPConfig(); err != nil {
 		log.Println("Load vip config failed:", err)
+		return nil, err
 	}
 
 	if c.Nodes, err = cfg.newNodes(c.NodeIDs); err != nil {
 		log.Println("Load nodes failed:", err)
+		return nil, err
 	}
 
 	c.Cls = &Cluster{
@@ -216,6 +247,7 @@ func (c *Config) analyzeNetwork() error {
 	if err != nil {
 		return err
 	}
+
 	c.Cls.Network = n
 	return nil
 }
@@ -237,26 +269,10 @@ func (c *Config) analyzeNodes() error {
 			node.Profile = "node"
 		}
 
-		nics := make(NodeInterfaces, 0, len(node.IP))
-		for i, mac := range node.MAC {
-			var ip string
-			if i < len(node.IP) && len(node.IP[i]) != 0 {
-				ip = node.IP[i]
-			} else {
-				ipnet, err := c.Cls.requestIP(mac, i)
-				if err != nil {
-					log.Println(err)
-					continue
-				}
-				ip = ipnet.String()
-				node.IP = append(node.IP, ip)
-			}
-
-			nics = append(nics, NodeInterface{
-				MAC:       mac,
-				IP:        ip,
-				Interface: fmt.Sprintf("eth%d", i),
-			})
+		nics, err := node.makeInterfaces(c)
+		if err != nil {
+			log.Println("Make interfaces failed: ", err)
+			return err
 		}
 		node.Nics = nics
 		node.Cluster = c.Cls
