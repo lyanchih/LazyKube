@@ -281,6 +281,9 @@ networkd:
         Name={{$nic.interface}}
         
         [Network]
+        {{- range $nic.dns }}
+        DNS={{ . }}
+        {{- end }}
         {{- if $nic.dhcp }}
         DHCP=ipv4
         {{- else }}

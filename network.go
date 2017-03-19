@@ -11,12 +11,14 @@ import (
 const bytePattern = "(?:[1-9]?[[:digit:]]|1[[:digit:]]{2}|2[0-4][[:digit:]]|25[0-5])"
 const ipPattern = "(?:" + bytePattern + "\\.){3}" + bytePattern
 const netmaskPattern = "(?:[1-2]?[[:digit:]]|3[0-2])"
+const cidrPattern = ipPattern + "(?:/" + netmaskPattern + ")"
 const ipPoolPattern = "^(?P<ip>" + ipPattern + ")(?:/(?P<netmask>" + netmaskPattern + "))?(?::(?P<startIP>" + ipPattern + ")(?:-(?P<endIP>" + ipPattern + "))?)?$"
 
 var (
 	ipPoolKeepIP     = uint32(20)
 	ipReg            = regexp.MustCompile("^" + ipPattern + "$")
 	ipPoolReg        = regexp.MustCompile(ipPoolPattern)
+	cidrReg          = regexp.MustCompile("^" + cidrPattern + "$")
 	ipPoolMatchError = errors.New("IP pool is not match")
 	startIPNotInCIDR = errors.New("Start IP of pool is not in CIDR")
 	endIPNotInCIDR   = errors.New("End IP of pool is not in CIDR")
@@ -46,6 +48,25 @@ func uint32ToIPv4(n uint32) (ip net.IP) {
 func cidrLastIP(cidr net.IPNet) (ip net.IP) {
 	ones, bits := cidr.Mask.Size()
 	return uint32ToIPv4(ipv4ToUint32(cidr.IP) + uint32((1<<uint32(bits-ones))-1))
+}
+
+func sameCIDR(s, t string) bool {
+	cidr := t
+	if !cidrReg.MatchString(t) {
+		ipnet := net.IPNet{
+			IP:   net.ParseIP(t),
+			Mask: net.ParseIP(t).DefaultMask(),
+		}
+		cidr = ipnet.String()
+
+	}
+
+	_, ipnet, err := net.ParseCIDR(cidr)
+	if err != nil {
+		return false
+	}
+
+	return ipnet.Contains(net.ParseIP(s))
 }
 
 type Network struct {

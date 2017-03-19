@@ -39,6 +39,7 @@ func (node *Node) makeInterfaces(c *Config) (NodeInterfaces, error) {
 			MAC:       mac,
 			IP:        ip,
 			Interface: fmt.Sprintf("%s%d", c.N.InterfaceBase, i),
+			DNS:       make([]string, 0),
 		}
 
 		if len(c.N.Gateway) != 0 && c.Cls.ContainIP(c.N.Gateway, i) {
@@ -49,6 +50,14 @@ func (node *Node) makeInterfaces(c *Config) (NodeInterfaces, error) {
 			if len(c.DHCP.Interface) == 0 || nic.Interface == c.DHCP.Interface {
 				nic.DHCP = true
 				dhcpChose = true
+			}
+		}
+
+		if len(c.D.DNS) != 0 {
+			for _, dns := range c.D.DNS {
+				if sameCIDR(nic.IP, dns) || len(nic.Gateway) != 0 {
+					nic.DNS = append(nic.DNS, dns)
+				}
 			}
 		}
 
@@ -63,11 +72,12 @@ func (nis NodeInterfaces) String() string {
 }
 
 type NodeInterface struct {
-	MAC       string `json:"mac"`
-	IP        string `json:"ip"`
-	Interface string `json:"interface"`
-	DHCP      bool   `json:"dhcp"`
-	Gateway   string `json:"gateway"`
+	MAC       string   `json:"mac"`
+	IP        string   `json:"ip"`
+	Interface string   `json:"interface"`
+	DHCP      bool     `json:"dhcp"`
+	Gateway   string   `json:"gateway"`
+	DNS       []string `json:"dns"`
 }
 
 func (nic NodeInterface) String() string {

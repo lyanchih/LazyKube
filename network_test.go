@@ -72,6 +72,23 @@ func TestIPPoolPatternReg(t *testing.T) {
 	testRegMatch(t, r, in, false, category)
 }
 
+func TestCIDRReg(t *testing.T) {
+	testFunc := func(p bool, ip string) {
+		if cidrReg.MatchString(ip) != p {
+			t.Fatal("CIDR string", ip, "match should be", p)
+		}
+	}
+
+	testFunc(true, "192.168.100.2/24")
+	testFunc(true, "172.56.0.2/24")
+	testFunc(true, "172.56.0.2/16")
+	testFunc(true, "10.2.5.6/20")
+	testFunc(false, "192.168.100.2")
+	testFunc(false, "172.56.0.2")
+	testFunc(false, "172.56.0.2")
+	testFunc(false, "10.2.5.6")
+}
+
 func TestIPv4ToUint32ToIPv4(t *testing.T) {
 	testFunc := func(ip string, n uint32) {
 		if ipv4ToUint32(net.ParseIP(ip)) != n {
@@ -101,6 +118,22 @@ func TestCIDRLastIP(t *testing.T) {
 	testFunc("172.17.0.14/24", "172.17.0.255")
 	testFunc("172.17.16.14/28", "172.17.16.15")
 	testFunc("192.55.121.14/16", "192.55.255.255")
+}
+
+func TestSameCIDR(t *testing.T) {
+	testFunc := func(predict bool, src, des string) {
+		if sameCIDR(src, des) != predict {
+			t.Fatalf("IP %s with %s should been %v contains", src, des, predict)
+		}
+	}
+
+	testFunc(true, "192.168.2.5", "192.168.2.100")
+	testFunc(true, "192.168.16.5", "192.168.16.100/24")
+	testFunc(true, "1.2.3.4", "1.100.3.4")
+	testFunc(true, "172.17.100.1", "172.17.0.2")
+	testFunc(false, "192.168.3.5", "192.168.2.100")
+	testFunc(false, "1.2.3.4", "2.2.3.4")
+	testFunc(false, "172.17.0.1", "172.18.0.2")
 }
 
 func testPoolResult(t *testing.T, p networkPool, ipnet, start, end string) {
