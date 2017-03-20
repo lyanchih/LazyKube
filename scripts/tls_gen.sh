@@ -36,24 +36,30 @@ DNS.104 = kubernetes.default.svc.cluster.local
 IP.1=10.3.0.1
 EOF
     for n in $(extract_nodes); do
-        i=$((i+1))
         case $role in
             all)
+                i=$((i+1))
                 echo "DNS.$i=${n}.${domain}"
             ;;
             *)
                 if extract_node $n | grep "role=$role" >/dev/null 2>&1; then
+                    i=$((i+1))
                     echo "DNS.$i=${n}.${domain}"
                 fi
                 ;;
         esac
-
     done
+
+    if [ "$(extract_session_key vip enable)" == "true" -a \
+                                             ! -z "$(extract_session_key vip domain)" ]; then
+        i=$((i+1))
+        echo "DNS.$i=$(extract_session_key vip domain)"
+    fi
 }
 
 function newCA() {
     local name=$1 role=$2 key="${1}-key.pem" csr="${1}.csr" ca="${1}.pem" csr_cnf="${1}-csr.cnf"
-    new_req_cnf $2 > $csr_cnf
+    new_req_cnf $role > $csr_cnf
     openssl genrsa -out $key 2048
     openssl req -new -key $key -out $csr -subj "/CN=k8s-${name}" -config $csr_cnf
     openssl x509 -req -in $csr -CA "ca.pem" -CAkey "ca-key.pem" -CAcreateserial -out $ca -days 365 -extensions v3_req -extfile $csr_cnf
@@ -65,7 +71,7 @@ openssl genrsa -out ca-key.pem 2048
 openssl req -x509 -new -nodes -key ca-key.pem -days 10000 -out ca.pem -subj "/CN=k8s-ca"
 
 ##### Generate API Server CA #####
-newCA api-server master
+newCA apiserver master
 
 ##### Generate Worker CA #####
 newCA worker all
