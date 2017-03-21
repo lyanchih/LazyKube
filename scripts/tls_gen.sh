@@ -58,20 +58,20 @@ EOF
 }
 
 function newCA() {
-    local name=$1 role=$2 key="${1}-key.pem" csr="${1}.csr" ca="${1}.pem" csr_cnf="${1}-csr.cnf"
+    local name=$1 cn=$2 role=$3 key="${1}-key.pem" csr="${1}.csr" ca="${1}.pem" csr_cnf="${1}-csr.cnf"
     new_req_cnf $role > $csr_cnf
     openssl genrsa -out $key 2048
-    openssl req -new -key $key -out $csr -subj "/CN=k8s-${name}" -config $csr_cnf
+    openssl req -new -key $key -out $csr -subj "/CN=${cn}" -config $csr_cnf
     openssl x509 -req -in $csr -CA "ca.pem" -CAkey "ca-key.pem" -CAcreateserial -out $ca -days 365 -extensions v3_req -extfile $csr_cnf
 
 }
 
 ##### Generate CA #####
 openssl genrsa -out ca-key.pem 2048
-openssl req -x509 -new -nodes -key ca-key.pem -days 10000 -out ca.pem -subj "/CN=k8s-ca"
+openssl req -x509 -new -nodes -key ca-key.pem -days 10000 -out ca.pem -subj "/CN=kube-ca"
 
 ##### Generate API Server CA #####
-newCA apiserver master
+newCA apiserver kube-apiserver master
 
 ##### Generate Worker CA #####
-newCA worker all
+newCA worker kube-worker all
