@@ -7,6 +7,10 @@ fmt:
 
 build: build_dir build_linux build_windows build_darwin link_build
 
+container_build:
+	docker run --rm -v $(shell pwd)/_bin:/_output -v $(shell pwd):/srv:ro \
+		-e REPO=github.com/lyanchih/LazyKube lyanchih/go-build
+
 clean:
 	rm -rf _bin/*
 	rm -rf _output/*
