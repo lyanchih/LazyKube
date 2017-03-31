@@ -21,7 +21,7 @@ We can deploy these two service by docker with following command
 
 ```
 ./scripts/docker-deploy
-``
+```
 
 Then you will got one IP address, which is the matchbox service address
 Please don't forget that, you will need that when you config your deploy config
