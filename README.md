@@ -76,6 +76,15 @@ You can just retype previous command
 ./scrips/docker-deploy
 ```
 
+#### generate tls certificate
+
+There is one script can generate tls cetificate and it will parse your cluster
+config. Just do not forget to regenerate certificate before you begin to deploy
+
+```
+./scripts/tls_gen.sh
+```
+
 #### boot your machine
 
 The most simple thing is using libvirt, we can just using following command
