@@ -4,6 +4,7 @@ Easy deploy kuberentes
 ## Requirement
 
 * docker
+* qemu/KVM ( if deploy with qemu/KVM )
 * libvirt ( if deploy with qemu/KVM )
 * virst-install ( if deploy with qemu/KVM )
 
@@ -74,6 +75,16 @@ You can just retype previous command
 
 ```
 ./scrips/docker-deploy
+```
+
+#### download coreos image
+
+Currently lazykube only support coreos, but matchbox only using ipxe or pxe
+to boot physical machine. If you have other os kernel and initramfs, of course
+you canusing that. However the simplest way is just download coreos.
+
+```
+./scripts/get-coreos stable 1235.9.0
 ```
 
 #### generate tls certificate
