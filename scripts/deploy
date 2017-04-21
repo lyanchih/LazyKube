@@ -1,0 +1,42 @@
+#!/bin/bash
+
+set -e
+
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+DEPLOY_STEPS="$DIR/deploy-steps"
+
+source "${DIR}/utils"
+
+. $DEPLOY_STEPS/prepare
+
+[ ! -x "_bin/lazykube" ] && make container_build
+
+_bin/lazykube config
+
+./scripts/docker-deploy
+
+which ssh-keygen >/dev/null 2>/dev/null || (echo "Please generate ssh key at ~/.ssh" && exit 1)
+
+[ -f "$HOME/.ssh/id_rsa" -a -f "$HOME/.ssh/id_rsa.pub" ] || ssh-keygen -f ~/.ssh/id_rsa -q -N ''
+
+VERSION=$(extract_session_key version)
+CHANNEL=$(extract_session_key channel)
+MATCHBOX_IP=$(inspect_container_ip matchbox)
+DNSMASQ_IP=$(inspect_container_ip dnsmasq)
+
+[ -z "$MATCHBOX_IP" ] && echo "Can not get matchbox container IP" && exit 1
+[ -z "$DNSMASQ_IP" ] && echo "Can not get dnsmasq container IP" && exit 1
+
+replace_session_key DEFAULT keys "$(cat ~/.ssh/id_rsa.pub)"
+replace_session_key matchbox ip $MATCHBOX_IP
+replace_session_key dns dns "$DNSMASQ_IP,8.8.8.8,8.8.4.4"
+
+_bin/lazykube config
+
+./scripts/docker-deploy
+
+./scripts/get-coreos $CHANNEL $VERSION
+
+./scripts/tls_gen.sh
+
+./scripts/libvirt create

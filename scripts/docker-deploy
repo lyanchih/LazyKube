@@ -38,7 +38,7 @@ run_matchbox() {
 }
 
 run_dnsmasq() {
-    docker run -d --name dnsmasq --cap-add=NET_ADMIN -v $GROUPS_DIR/dnsmasq.conf:/etc/dnsmasq.conf:Z quay.io/coreos/dnsmasq -d
+    docker run -d --name dnsmasq --cap-add=NET_ADMIN -v $MATCHBOX_DIR/assets/tftpboot:/var/lib/tftpboot -v $GROUPS_DIR/dnsmasq.conf:/etc/dnsmasq.conf:Z quay.io/coreos/dnsmasq -d
 }
 
 if ! check_container_exist matchbox; then

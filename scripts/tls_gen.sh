@@ -35,6 +35,11 @@ DNS.103 = kubernetes.default.svc
 DNS.104 = kubernetes.default.svc.cluster.local
 IP.1=10.3.0.1
 EOF
+
+    if [ "$(extract_session_key vip enable)" == "true" ]; then
+        echo "IP.2=$(extract_session_key vip vip)"
+    fi
+
     for n in $(extract_nodes); do
         case $role in
             all)
@@ -75,3 +80,11 @@ newCA apiserver kube-apiserver master
 
 ##### Generate Worker CA #####
 newCA worker kube-worker all
+
+##### Generate User CA #####
+newCA user kube-user master
+
+cd - >/dev/null
+
+##### Generate k8s config
+k8s_config

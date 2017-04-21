@@ -1,122 +1,120 @@
-# LazyKube
+# LazyKube #
+
 Easy deploy kuberentes
 
-## Requirement
+## Requirement ##
 
 * docker
+* openssh-client ( used to generate CA )
 * qemu/KVM ( if deploy with qemu/KVM )
 * libvirt ( if deploy with qemu/KVM )
 * virst-install ( if deploy with qemu/KVM )
 
-## How to deploy
+## How to deploy ##
 
-### Create containers
-
-LazyKube deploy tools needs two service
-One is matchbox, and the other is dnsmasq
-
-matchbox used for pxe and cloud-init information
-dnsmasq used for dhcp, tftp and dns service
-
-We can deploy these two service by docker with following command
+Clone this repository and just using deploy and repository's home folder
 
 ```
-./scripts/docker-deploy
+git clone http://github.com/lyanchih/Lazykube
+cd Lazykube
+sudo ./scripts/deploy
 ```
 
-Then you will got one IP address, which is the matchbox service address
-Please don't forget that, you will need that when you config your deploy config
+The deploy script will check and execute few scripts to do deploy job.
+You can study detail deploy steps at
+[Detail deploy steps](scripts/README.md)
 
-### Generate cluster config
+# lazy ini options #
 
-#### configure your lazy ini file
+Arrary's content is seperate by ","
 
-You need to configure your cluster config.
-This project had offer default ini file which is located at etc/lazy.ini
+## DEFAULT session ##
 
-> Don't forget to place your ssh key at [DEFAULT]/keys
++--------------------+--------------------+--------------------+--------------------+--------------------+
+|        key         |       value        |        type        |      require       |    description     |
++--------------------+--------------------+--------------------+--------------------+--------------------+
+|       domain       |    example.com     |       string       |         *          |cluster node's base |
+|                    |                    |                    |                    |       domain       |
++--------------------+--------------------+--------------------+--------------------+--------------------+
+|      version       |      1235.9.0      |       string       |         *          |coreos image version|
++--------------------+--------------------+--------------------+--------------------+--------------------+
+|      channel       |       stable       |       string       |         *          |coreos image channel|
+|                    |                    |                    |                    |  (stable or dev)   |
++--------------------+--------------------+--------------------+--------------------+--------------------+
+|        keys        |                    |      []string      |         *          | cluster node's ssh |
+|                    |                    |                    |                    |     public key     |
++--------------------+--------------------+--------------------+--------------------+--------------------+
+|       nodes        |                    |      []string      |         *          | cluster node list, |
+|                    |                    |                    |                    |this will reference |
+|                    |                    |                    |                    |  to node session   |
++--------------------+--------------------+--------------------+--------------------+--------------------+
 
-#### build lazykube binary file
 
-There are two methods to do this
+## matchbox ##
 
-If you had installed golang, you can just make binary file which will default
-stored at _bin folder
++--------------------+------------------------+--------------------+--------------------+--------------------+
+|        key         |       value            |        type        |      require       |    description     |
++--------------------+------------------------+--------------------+--------------------+--------------------+
+|         ip         |     172.17.0.2         |       string       |         *          |matchbox container's|
+|                    |                        |                    |                    |         IP         |
++--------------------+------------------------+--------------------+--------------------+--------------------+
+|        url         |http://matchbox.com:8080|       string       |         *          |   matchbox's url   |
++--------------------+------------------------+--------------------+--------------------+--------------------+
+|       domain       |      matchbox.com      |       string       |         *          | matchbox's domain  |
+|                    |                        |                    |                    |   name, dns will   |
+|                    |                        |                    |                    |record this address |
+|                    |                        |                    |                    |       to IP        |
++--------------------+------------------------+--------------------+--------------------+--------------------+
 
-```
-make build
-```
 
-Or using container to make binary file
+## network ##
 
-```
-make container_build
-```
++--------------------+--------------------+--------------------+--------------------+-----------------------------+
+|        key         |       value        |        type        |      require       |    description              |
++--------------------+--------------------+--------------------+--------------------+-----------------------------+
+|      gateway       |     172.17.0.1     |       string       |         *          | Default router IP           |
++--------------------+--------------------+--------------------+--------------------+-----------------------------+
+|        ips         |                    |      []string      |         *          |       Cluster network       |
+|                    |                    |                    |                    |      settings, format:      |
+|                    |                    |                    |                    |<cidr>:[<start_ip>[-<end_ip]]|
++--------------------+--------------------+--------------------+--------------------+-----------------------------+
 
-#### generate cluster config
 
-Just run lazykube execute file, output files will default stored at _output
+## vip ##
 
-```
-./_bin/lazykube config
-```
++--------------------+--------------------+--------------------+--------------------+--------------------+
+|        key         |       value        |        type        |      require       |    description     |
++--------------------+--------------------+--------------------+--------------------+--------------------+
+|       enable       |        true        |      boolean       |         *          |     Enable vip     |
++--------------------+--------------------+--------------------+--------------------+--------------------+
+|        vip         |    172.17.0.100    |       string       |         *          |        VIP         |
++--------------------+--------------------+--------------------+--------------------+--------------------+
+|       domain       |  vip.cluster.com   |       string       |                    |     VIP domain     |
++--------------------+--------------------+--------------------+--------------------+--------------------+
 
-Or you can see usage
 
-```
-./bin/lazykube help
-```
+## dns ##
 
-#### restart dnsmasq service
++--------------------+--------------------+--------------------+--------------------+--------------------+
+|        key         |       value        |        type        |      require       |    description     |
++--------------------+--------------------+--------------------+--------------------+--------------------+
+|        dns         |      8.8.8.8       |      []string      |         *          | Cluster node's dns |
+|                    |                    |                    |                    |      servers       |
++--------------------+--------------------+--------------------+--------------------+--------------------+
 
-If you had change the config, don't forget to restart dnsmasq service
-Or the new dns informaion will not work.
-You can just retype previous command
 
-```
-./scrips/docker-deploy
-```
+## nodes ##
 
-#### download coreos image
++--------------------+--------------------+--------------------+--------------------+--------------------+
+|        key         |       value        |        type        |      require       |    description     |
++--------------------+--------------------+--------------------+--------------------+--------------------+
+|        mac         |                    |      []string      |         *          | Cluster node's mac |
+|                    |                    |                    |                    |      address       |
++--------------------+--------------------+--------------------+--------------------+--------------------+
+|        role        |                    |       string       |         *          |Cluster node's role |
++--------------------+--------------------+--------------------+--------------------+--------------------+
 
-Currently lazykube only support coreos, but matchbox only using ipxe or pxe
-to boot physical machine. If you have other os kernel and initramfs, of course
-you canusing that. However the simplest way is just download coreos.
 
-```
-./scripts/get-coreos stable 1235.9.0
-```
+# LIMIT #
 
-#### generate tls certificate
-
-There is one script can generate tls cetificate and it will parse your cluster
-config. Just do not forget to regenerate certificate before you begin to deploy
-
-```
-./scripts/tls_gen.sh
-```
-
-#### boot your machine
-
-The most simple thing is using libvirt, we can just using following command
-to create VMs. Script will automatic parse lazy ini file to operate VMs.
-
-```
-./scripts/libvirt create
-```
-
-And destroy VMs
-
-```
-./scripts/libvirt destroy
-```
-
-You can get usage about the script by
-
-```
-./scripts/libvirt -h
-```
-
-# LIMIT
-
-Currently only support coreos
+Currently only support deploy coreos

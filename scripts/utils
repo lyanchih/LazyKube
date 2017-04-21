@@ -65,7 +65,7 @@ function filter_session() {
 function extract_key() {
     local key=$1
 
-    awk '/'$key'/ {split($0, v, "="); if (length(v)>1) {gsub(",", " ", v[2]); print v[2]}}' -
+    awk '/^'$key'=/ {split($0, v, "="); if (length(v)>1) {gsub(",", " ", v[2]); print v[2]}}' -
 }
 
 function extract_session_key() {
@@ -80,4 +80,117 @@ function extract_session_key() {
         key=$2
     fi
     extract_session $file $session | extract_key $key
+}
+
+function replace_session_key() {
+    local file=$1 session=$2 key=$3 value=$4
+    if [[ $# -eq 1 ]]; then
+        return 1
+    elif [[ $# -eq 2 ]]; then
+        file=$(find_config)
+        session=DEFAULT
+        key=$1
+        value=$2
+    elif [[ $# -eq 3 ]]; then
+        file=$(find_config)
+        session=$1
+        key=$2
+        value=$3
+    fi
+
+    sed -i '
+:find_s
+/^\['"$session"'\]$/bfind_k
+n
+bfind_s
+
+:find_k
+n
+/'$key'=/{
+  s|=.*$|='"$value"'|
+  bend
+}
+/^\[.*\]$/badd_v
+$!bfind_k
+q
+
+:add_v
+x
+a'"$key"'='"$value"'
+x
+N
+
+:end
+n
+$!bend
+q' $file
+}
+
+
+function inspect_container_ip {
+    docker inspect -f "{{.NetworkSettings.IPAddress}}" $1
+}
+
+function pcomment {
+    local s="" level=$1
+    [ -z "level" ] && level=1
+    for i in $(seq 1 $level); do
+        s="${s}#####"
+    done
+    echo $s
+}
+
+function phead {
+    local ctx=$1 level=$2
+
+    echo "$(pcomment $level) BEGIN ${ctx^^} $(pcomment $level)"
+}
+
+function pend {
+    local ctx=$1 level=$2
+
+    echo -e "$(pcomment $level) END ${ctx^^} $(pcomment $level)\n"
+}
+
+function k8s_config {
+    local dir=$1 ip=""
+    [ -z "$dir" ] && dir="$PWD/contrib/matchbox/assets/tls"
+    if [ "$(extract_session_key vip enable)" == "true" ]; then
+        ip="$(extract_session_key vip domain)"
+        [ -z "$ip" ] && ip="$(extract_session_key vip vip)"
+    elif [ -z "$ip" ]; then
+        for n in $(extract_nodes); do
+            [ "$(extract_session_key $n $role)" != master ] && continue
+            ip="$n.$(extract_session_key DEFAULT domain)"
+            break
+        done
+    fi
+    cat - > $dir/config <<EOF
+apiVersion: v1
+clusters:
+- cluster:
+    certificate-authority: $dir/ca.pem
+    server: https://$ip
+  name: k8s
+contexts:
+- context:
+    cluster: k8s
+    user: user
+  name: k8s
+current-context: k8s
+kind: Config
+preferences: {}
+users:
+- name: user
+  user:
+    client-certificate: $dir/user.pem
+    client-key: $dir/user-key.pem
+- name: worker
+  user:
+    client-certificate: $dir/worker.pem
+    client-key: $dir/worker-key.pem
+EOF
+
+    [ ! -d "$HOME/.kube" ] && mkdir $HOME/.kube || true
+    [ ! -f "$HOME/.kube/config" ] && cp $dir/config $HOME/.kube/config || true
 }

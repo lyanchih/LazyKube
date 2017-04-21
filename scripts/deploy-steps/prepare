@@ -1,0 +1,19 @@
+#!/bin/bash
+
+function install_package {
+    if  which apt-get >/dev/null 2>&1; then
+        apt-get install -y libvirt-bin docker.io virt-manager qemu-system-x86 openssh-client
+        return 0
+    fi
+    cat - <<EOF
+This tool currently only support apt-get automatic install packages
+Please install following packages manually
+- docker
+- openssh-client (Using at generate certificate)
+- libvirt (If using qemu/kvm)
+- virt-manager (If using qemu/kvm)
+- qemu/kvm (If using qemu/kvm)
+EOF
+}
+
+install_package
