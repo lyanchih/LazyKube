@@ -21,8 +21,14 @@ which ssh-keygen >/dev/null 2>/dev/null || (echo "Please generate ssh key at ~/.
 
 VERSION=$(extract_session_key version)
 CHANNEL=$(extract_session_key channel)
-MATCHBOX_IP=$(inspect_container_ip matchbox)
-DNSMASQ_IP=$(inspect_container_ip dnsmasq)
+if [ -z "$DOCKER_HOST_INTERFACE" ]; then
+    MATCHBOX_IP=$(inspect_container_ip matchbox)
+    DNSMASQ_IP=$(inspect_container_ip dnsmasq)
+else
+    ip addr show $DOCKER_HOST_INTERFACE
+    MATCHBOX_IP=$(ip a show $DOCKER_HOST_INTERFACE | awk '/ inet /{print $2}' | cut -d'/' -f1)
+    DNSMASQ_IP=$MATCHBOX_IP
+fi
 
 [ -z "$MATCHBOX_IP" ] && echo "Can not get matchbox container IP" && exit 1
 [ -z "$DNSMASQ_IP" ] && echo "Can not get dnsmasq container IP" && exit 1

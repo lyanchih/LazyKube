@@ -2,6 +2,7 @@
 # Manage VM nodes which have a specific set of hardware attributes.
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+FIRST_BRIDGE=${FIRST_BRIDGE:=docker0}
 
 source "${DIR}/utils"
 
@@ -73,7 +74,7 @@ function create_docker {
         network=""
         for mac in $(extract_session_key $n mac | tr ',' ' '); do
             if [ -z "$network" ]; then
-                network="--network=bridge:docker0,mac=$mac"
+                network="--network=bridge:${FIRST_BRIDGE},mac=$mac"
             else
                 check_and_create_internal_bridge
                 network="$network --network=bridge:kube0,mac=$mac"
