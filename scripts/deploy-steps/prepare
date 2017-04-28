@@ -2,7 +2,7 @@
 
 function install_package {
     if  which apt-get >/dev/null 2>&1; then
-        apt-get install -y libvirt-bin docker.io virt-manager qemu-system-x86 openssh-client make curl iproute2
+        apt-get update && apt-get install -y libvirt-bin docker.io virt-manager qemu-system-x86 openssh-client make curl iproute2
         return 0
     fi
     cat - <<EOF
