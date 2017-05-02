@@ -25,6 +25,15 @@ systemd:
             After=flanneld.service
             [Service]
             EnvironmentFile=/etc/kubernetes/cni/docker_opts_cni.env
+      {{- if index . "registries" }}
+      dropins:
+        - name: 50-insecure.conf
+          contents: |
+            [Unit]
+            Environment=DOCKER_OPTS="
+            {{- range .registries }}{{ printf "--insecure-registry %s " . }}
+            {{- end }}"
+      {{- end }}
     - name: locksmithd.service
       dropins:
         - name: 40-etcd-lock.conf
@@ -174,7 +183,6 @@ storage:
         inline: |
           DOCKER_OPT_BIP=""
           DOCKER_OPT_IPMASQ=""
-          DOCKER_OPTS="--insecure-registry=172.22.118.2:5000"
     - path: /etc/sysctl.d/max-user-watches.conf
       filesystem: root
       contents:

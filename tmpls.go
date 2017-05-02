@@ -1,6 +1,7 @@
 package lazy
 
 import (
+	"encoding/json"
 	"os"
 	"text/template"
 )
@@ -60,6 +61,9 @@ const K8S_WORKER_TMPL = `{
     "k8s_dns_service_ip": "10.3.0.10",
     "k8s_etcd_endpoints": "{{.Endpoints}}",
     "interfaces": {{.Nics}},
+    {{- with .Registries }}
+    "registries": {{- j2s .}},
+    {{- end }}
     "ssh_authorized_keys": {{.AuthorizedKeys}}
   }
 }
@@ -137,8 +141,15 @@ log-queries
 log-dhcp
 `
 
+var funcMap = template.FuncMap{
+	"j2s": func(v interface{}) string {
+		bs, _ := json.Marshal(v)
+		return string(bs)
+	},
+}
+
 func writeTemplateToFile(tmplContent, name, fileName string, data interface{}) error {
-	tmpl, err := template.New(name).Parse(tmplContent)
+	tmpl, err := template.New(name).Funcs(funcMap).Parse(tmplContent)
 	if err != nil {
 		return err
 	}

@@ -67,6 +67,16 @@ func (cfg *iniConfig) newNodes(ids []string) ([]*Node, error) {
 	return nodes, nil
 }
 
+func (cfg *iniConfig) newContainerConfig() (*ContainerConfig, error) {
+	v, err := cfg.newConfigFromSection("container", &ContainerConfig{})
+	if err != nil {
+		return nil, err
+	}
+
+	n := v.(*ContainerConfig)
+	return n, nil
+}
+
 func (cfg *iniConfig) newNetworkConfig() (*NetworkConfig, error) {
 	v, err := cfg.newConfigFromSection("network", &NetworkConfig{})
 	if err != nil {
@@ -115,6 +125,7 @@ func (cfg *iniConfig) newVIPConfig() (*VIPConfig, error) {
 
 type Config struct {
 	*DefaultConfig
+	C     *ContainerConfig
 	N     *NetworkConfig
 	M     *MatchboxConfig
 	D     *DNSConfig
@@ -143,6 +154,10 @@ type NodeConfig struct {
 	Role    string   `ini:"role"`
 	IP      []string `ini:"ip"`
 	Profile string   `ini:"profile"`
+}
+
+type ContainerConfig struct {
+	Registries []string `ini:"registries"`
 }
 
 type NetworkConfig struct {
@@ -179,6 +194,11 @@ func Load(file string) (*Config, error) {
 
 	if c.DefaultConfig, err = cfg.newDefaultConfig(); err != nil {
 		log.Println("Load config failed:", err)
+		return nil, err
+	}
+
+	if c.C, err = cfg.newContainerConfig(); err != nil {
+		log.Println("Load container config failed:", err)
 		return nil, err
 	}
 
@@ -342,6 +362,7 @@ func (c *Config) analyzeCluster() error {
 	c.Cls.Endpoints = strings.Join(endpoints, ",")
 	c.Cls.ControllerEndpoint = controllerEndpoint
 	c.Cls.AuthorizedKeys = string(bs)
+	c.Cls.Registries = c.C.Registries
 	return nil
 }
 

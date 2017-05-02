@@ -5,6 +5,7 @@ type Cluster struct {
 	Endpoints          string
 	ControllerEndpoint string
 	AuthorizedKeys     string
+	Registries         []string
 	M                  *MatchboxConfig
 	*Network
 }
