@@ -3,6 +3,9 @@
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 FIRST_BRIDGE=${FIRST_BRIDGE:=docker0}
+DEFAULT_MEMORY=2048
+DEFAULT_CPU=2
+DEFAULT_DISK=15
 
 source "${DIR}/utils"
 
@@ -21,8 +24,7 @@ function main {
     fi
     
     case "$ACTION" in
-        "create") create_docker;;
-        "create-docker") create_docker;;
+        "create") create_vm;;
         "start") start;;
         "reboot") reboot;;
         "shutdown") shutdown;;
@@ -53,7 +55,7 @@ Commands:"
 EOF
 }
 
-COMMON_VIRT_OPTS="--memory=1024 --vcpus=1 --pxe --disk pool=default,size=15 --os-type=linux --os-variant=generic --noautoconsole --events on_poweroff=preserve"
+COMMON_VIRT_OPTS="--pxe --os-type=linux --os-variant=generic --noautoconsole --events on_poweroff=preserve"
 
 function check_and_create_internal_bridge {
     local br=$1
@@ -68,19 +70,32 @@ function check_and_create_internal_bridge {
     fi
 }
 
-function create_docker {
-    local network=""
+function create_node {
+    local node=$1 network="" \
+          memory="$(extract_session_key $1 memory)" \
+          cpu="$(extract_session_key $1 cpu)" \
+          disk="$(extract_session_key $1 disk)"
+    [ ! -z "$node" ] || return 0
+
+    for mac in $(extract_session_key $node mac | tr ',' ' '); do
+        if [ -z "$network" ]; then
+            network="--network=bridge:${FIRST_BRIDGE},mac=$mac"
+        else
+            check_and_create_internal_bridge
+            network="$network --network=bridge:kube0,mac=$mac"
+        fi
+    done
+
+    virt-install --name $node $network --boot=hd,network \
+                 --memory ${memory:-$DEFAULT_MEMORY} --vcpus ${cpu:-$DEFAULT_CPU} \
+                 --disk pool=default,size=${disk:-$DEFAULT_DISK} \
+                 $COMMON_VIRT_OPTS
+}
+
+function create_vm {
+    local network="" memory="" cpu="" disk=""
     for n in ${nodes[@]}; do
-        network=""
-        for mac in $(extract_session_key $n mac | tr ',' ' '); do
-            if [ -z "$network" ]; then
-                network="--network=bridge:${FIRST_BRIDGE},mac=$mac"
-            else
-                check_and_create_internal_bridge
-                network="$network --network=bridge:kube0,mac=$mac"
-            fi
-        done
-        virt-install --name $n $network $COMMON_VIRT_OPTS --boot=hd,network
+        create_node $n
     done
 }
 
