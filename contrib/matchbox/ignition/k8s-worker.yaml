@@ -26,10 +26,9 @@ systemd:
             [Service]
             EnvironmentFile=/etc/kubernetes/cni/docker_opts_cni.env
       {{- if index . "registries" }}
-      dropins:
         - name: 50-insecure.conf
           contents: |
-            [Unit]
+            [Service]
             Environment=DOCKER_OPTS="
             {{- range .registries }}{{ printf "--insecure-registry %s " . }}
             {{- end }}"
